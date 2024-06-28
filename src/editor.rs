@@ -1,5 +1,7 @@
-use std::io::{self, stdin, stdout, Read};
+use std::io::BufReader;
+use std::io::{stdin, Read};
 use crossterm::terminal;
+use tokio::task;
 
 pub struct Editor {
 
@@ -14,11 +16,23 @@ pub fn die(err: std::io::Error) {
     panic!("{}", err);
 }
 
+pub async fn meow() {
+    let (_stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
+
+    let file = std::fs::File::open("src/audio/meow.wav").unwrap();
+    let source = rodio::Decoder::new(BufReader::new(file)).unwrap();
+    let sink = rodio::Sink::try_new(&stream_handle).unwrap();
+    
+    sink.append(source);
+    sink.sleep_until_end();
+}
+
 impl Editor {
     pub fn default() -> Self {            
         Editor{}            
     }
-    pub fn run(&self){
+    #[tokio::main]
+    pub async fn run(&self){
         terminal::enable_raw_mode().expect("Could not turn on Raw mode");
         for byte in stdin().bytes() {
             match byte {            
@@ -30,6 +44,7 @@ impl Editor {
                         println!("{:?} \r", byte);
                     } else {
                         println!("{:?} ({})\r", byte, chars);
+                        task::spawn(meow());
                     }
                     if byte == to_ctrl_byte('q') {
                         break;
